@@ -79,12 +79,23 @@ class VentanaPrincipal(Gtk.Window):
         print("El usuario seleccionado es: ", modelo[punteroFila][0], modelo[punteroFila][1], modelo[punteroFila][2])
 
     def on_celda_telefono_edited(self, celda, fila, texto, modelo, columna): # Método que se ejecuta cuando se edita la celda
-        modelo[fila][columna]=texto # Cambio el valor de la celda en el modelo de la tabla
+        try:
+            bbdd= dbapi.connect("bdListinTelefonico.dat")
+            c = bbdd.cursor()
+            c.execute("""update listaTelefonos set telefono=? where telefono=?""",(texto, modelo[fila][2])) # Actualizo el valor de la celda en la base de datos
+            bbdd.commit() # Guardo los cambios
+            c.close()
+            bbdd.close()
+        except dbapi.Error as e:
+            print (e)
+        except dbapi.DatabaseError as e:
+            print (e)
+        modelo[fila][columna] = texto  # Cambio el valor de la celda en el modelo de la tabla
 
 
     def on_btnIngresar_clicked(self, boton, modelo):
         elemento=list() # Creo una lista vacía
-        if self.txtNombre.get_text()!="" and self.txtApellido.get_text()!="" and self.txtTelefono.get_text()!="":
+        if self.txtNombre.get_text()!="" and self.txtApellido.get_text()!="" and self.txtTelefono.get_text()!="": # Si los campos no están vacíos
             elemento=[self.txtNombre.get_text(), self.txtApellido.get_text(), self.txtTelefono.get_text()]
 
         modelo.append(elemento) # Añado una fila al modelo de la tabla
