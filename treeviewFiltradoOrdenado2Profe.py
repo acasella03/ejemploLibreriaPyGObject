@@ -34,18 +34,22 @@ class ventanaPrincipal(Gtk.Window):
              bbdd.close()
 
 
-        #tryDatosUsarios = Gtk.TreeView(model=modelo)
-        tryDatosUsarios = Gtk.TreeView(model=modelo_filtrado)  # Ver commits para entender cuando he usado un modelo y cuando otro.
-        seleccion = tryDatosUsarios.get_selection()
+        #trvDatosUsarios = Gtk.TreeView(model=modelo)
+        ventanaScroll = Gtk.ScrolledWindow()
+        ventanaScroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        ventanaScroll.set_size_request(300, 150)
+        trvDatosUsarios = Gtk.TreeView(model=modelo_filtrado)  # Ver commits para entender cuando he usado un modelo y cuando otro.
+        seleccion = trvDatosUsarios.get_selection()
+        ventanaScroll.add(trvDatosUsarios)
 
         for i, tituloColumna in enumerate(["Dni", "Nome"]):#Aqui pongo las columnas que quiero que se muestren. La i es la posicion de la columna en la tupla y el titulo es el nombre de la columna.
             celda = Gtk.CellRendererText()
             columna = Gtk.TreeViewColumn(tituloColumna, celda, text=i)# Para la columna necesito el titulo, la celda y el texto. El texto es la posicion de la columna en la tupla.
-            tryDatosUsarios.append_column(columna)
+            trvDatosUsarios.append_column(columna)
 
             celda = Gtk.CellRendererProgress()
             columna = Gtk.TreeViewColumn("Edade", celda, value=2)
-            tryDatosUsarios.append_column(columna)
+            trvDatosUsarios.append_column(columna)
 
         # Combo con un modelo
         modeloCombo = Gtk.ListStore(str)
@@ -61,8 +65,8 @@ class ventanaPrincipal(Gtk.Window):
         celda.connect("edited", self.on_celdaXenero_edited, modelo_filtrado, 3)
 
         columna = Gtk.TreeViewColumn("Xenero", celda, text=3)
-        tryDatosUsarios.append_column(columna)
-        cajaV.pack_start(tryDatosUsarios, True, True, 2)
+        trvDatosUsarios.append_column(columna)
+        cajaV.pack_start(ventanaScroll, True, True, 2)
 
         cajaH = Gtk.Box(orientation = Gtk.Orientation.HORIZONTAL, spacing=2)
         cajaV.pack_start(cajaH, True, True, 0)
@@ -185,12 +189,14 @@ class ventanaPrincipal(Gtk.Window):
                 cursor.execute("insert into usuarios values(?,?,?,?,?)",datos)
             if self.operacion == "Editar":
                 modelo, fila= seleccion.get_selected()
-                modelo[fila][0] = nome
-                modelo[fila][1] = dni
-                modelo[fila][2] = edade
+                dniAnt= modelo[fila][0]
+                modelo[fila][0] = dni
+                modelo[fila][1] = nome
+                modelo[fila][2] = int(edade)
                 modelo[fila][3] = xenero
                 modelo[fila][4] = falecido
-                cursor.execute("UPDATE usuarios set nome = ?, dni=?, edade = ?, xenero = ?, falecido = ? where dni = ?", datos)
+                datosUp=(dni, nome, int(edade), xenero, falecido, dniAnt)
+                cursor.execute("UPDATE usuarios set dni=?, nome = ?, edade = ?, xenero = ?, falecido = ? where dni = ?",datosUp)
             bbdd.commit()
         except dbapi.DatabaseError as e:
             print("Erro insertando usuarios: " + e)
@@ -199,13 +205,17 @@ class ventanaPrincipal(Gtk.Window):
             bbdd.close()
             self.limpiarControles()
             self.deshabilitarControles()
+            self.btnEditar.set_sensitive(True)
+            self.btnNovo.set_sensitive(True)
 
     def on_btnEditar_clicked(self, control, seleccion):
         self.operacion = "Editar"
         self.habilitarControles()
+        self.btnNovo.set_sensitive(False)
+        self.btnEditar.set_sensitive(False)
         modelo,fila = seleccion.get_selected()
-        self.txtNome.set_text(modelo[fila][0])
-        self.txtDni.set_text(modelo[fila][1])
+        self.txtDni.set_text(modelo[fila][0])
+        self.txtNome.set_text(modelo[fila][1])
         self.txtEdade.set_text(str(modelo[fila][2]))
         xen=modelo[fila][3]
         modeloXenero = self.cmbXenero.get_model()
