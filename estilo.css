@@ -1,0 +1,11 @@
+window{
+    background-color: white;
+}
+entry{
+    color: black;
+    border: 1px solid grey;
+}
+entry#edadeErro{
+    color: red;
+    border: 1px solid red;
+}

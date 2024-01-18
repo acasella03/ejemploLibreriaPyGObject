@@ -1,6 +1,6 @@
 import gi
 gi.require_version("Gtk","3.0")
-from gi.repository import Gtk
+from gi.repository import Gtk, Gdk
 import sqlite3 as dbapi
 
 class ventanaPrincipal(Gtk.Window):
@@ -10,6 +10,12 @@ class ventanaPrincipal(Gtk.Window):
 
         self.set_default_size(250, 100)
         self.set_border_width(10)
+
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_path('estilo.css')
+        contexto = Gtk.StyleContext()
+        screen = Gdk.Screen.get_default()
+        contexto.add_provider_for_screen(screen, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
         cajaV = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         cajaPrincipal = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
@@ -179,34 +185,40 @@ class ventanaPrincipal(Gtk.Window):
         modeloXenero=self.cmbXenero.get_model()
         xenero = modeloXenero[idXenero][0]
         falecido = self.chkFalecido.get_active()
-        datos = (dni, nome, int(edade), xenero, falecido)
+        if self.datosCorrectos(dni,edade):
 
-        try:
-            bbdd = dbapi.connect("baseDatos2.dat")
-            cursor = bbdd.cursor()
-            if self.operacion == "Novo":
-                modelo.append(datos)
-                cursor.execute("insert into usuarios values(?,?,?,?,?)",datos)
-            if self.operacion == "Editar":
-                modelo, fila= seleccion.get_selected()
-                dniAnt= modelo[fila][0]
-                modelo[fila][0] = dni
-                modelo[fila][1] = nome
-                modelo[fila][2] = int(edade)
-                modelo[fila][3] = xenero
-                modelo[fila][4] = falecido
-                datosUp=(dni, nome, int(edade), xenero, falecido, dniAnt)
-                cursor.execute("UPDATE usuarios set dni=?, nome = ?, edade = ?, xenero = ?, falecido = ? where dni = ?",datosUp)
-            bbdd.commit()
-        except dbapi.DatabaseError as e:
-            print("Erro insertando usuarios: " + e)
-        finally:
-            cursor.close()
-            bbdd.close()
-            self.limpiarControles()
-            self.deshabilitarControles()
-            self.btnEditar.set_sensitive(True)
-            self.btnNovo.set_sensitive(True)
+            datos = (dni, nome, int(edade), xenero, falecido)
+            try:
+                bbdd = dbapi.connect("baseDatos2.dat")
+                cursor = bbdd.cursor()
+                if self.operacion == "Novo":
+                    modelo.append(datos)
+                    cursor.execute("insert into usuarios values(?,?,?,?,?)",datos)
+                if self.operacion == "Editar":
+                    modelo, fila= seleccion.get_selected()
+                    dniAnt= modelo[fila][0]
+                    modelo[fila][0] = dni
+                    modelo[fila][1] = nome
+                    modelo[fila][2] = int(edade)
+                    modelo[fila][3] = xenero
+                    modelo[fila][4] = falecido
+                    datosUp=(dni, nome, int(edade), xenero, falecido, dniAnt)
+                    cursor.execute("UPDATE usuarios set dni=?, nome = ?, edade = ?, xenero = ?, falecido = ? where dni = ?",datosUp)
+                bbdd.commit()
+            except dbapi.DatabaseError as e:
+                print("Erro insertando usuarios: " + e)
+            finally:
+                cursor.close()
+                bbdd.close()
+                self.limpiarControles()
+                self.deshabilitarControles()
+                self.btnEditar.set_sensitive(True)
+                self.btnNovo.set_sensitive(True)
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_path('estilo.css')
+        contexto = Gtk.StyleContext()
+        screen = Gdk.Screen.get_default()
+        contexto.add_provider_for_screen(screen, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION)
 
     def on_btnEditar_clicked(self, control, seleccion):
         self.operacion = "Editar"
@@ -261,7 +273,18 @@ class ventanaPrincipal(Gtk.Window):
         self.btnCancelar.set_sensitive(False)
         self.chkFalecido.set_sensitive(False)
 
-
+    def datosCorrectos(self, dni, edade):
+        correctos=True
+        if edade.isdigit():
+            if int(edade)>0 and int(edade)<200:
+                self.txtEdade.set_name("edade")
+            else:
+                correctos=False
+                self.txtEdade.set_name("edadeErro")
+        else:
+            correctos=False
+            self.txtEdade.set_name("edadeErro")
+        return correctos
 
 if __name__ =="__main__":
     ventanaPrincipal()
