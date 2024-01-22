@@ -1,6 +1,6 @@
 import gi
 gi.require_version("Gtk","3.0")
-from gi.repository import Gtk, Gdk
+from gi.repository import Gtk, Gdk, GLib
 import sqlite3 as dbapi
 
 class ventanaPrincipal(Gtk.Window):
@@ -92,6 +92,7 @@ class ventanaPrincipal(Gtk.Window):
         cajaPrincipal.pack_start(grid, True, True, 0)
         self.lblNome = Gtk.Label(label="Nome")
         self.txtNome = Gtk.Entry()
+        self.txtNome.set_tooltip_text("Nome da persoa a crear ou modificar")
         self.lblDni = Gtk.Label(label="Dni")
         self.txtDni = Gtk.Entry()
         self.lblEdade = Gtk.Label(label="Edade")
@@ -104,13 +105,13 @@ class ventanaPrincipal(Gtk.Window):
         self.cmbXenero.pack_start(celda, True)
         self.cmbXenero.add_attribute(celda, "text", 0)# La columna que quiero que se muestre es la 0, la primera.
         self.chkFalecido = Gtk.CheckButton(label="Falecido")
-        self.btnNovo = Gtk.Button(label="Novo")
+        self.btnNovo = Gtk.Button.new_with_mnemonic(label="_Novo") # Con new_with_mnemonic le digo que quiero que se pueda pulsar con Alt+N
         self.btnNovo.connect("clicked", self.on_btnNovo_clicked)
-        self.btnEditar = Gtk.Button(label="Editar")
+        self.btnEditar = Gtk.Button.new_with_mnemonic(label="_Editar") # Con new_with_mnemonic le digo que quiero que se pueda pulsar con Alt+E
         self.btnEditar.connect("clicked", self.on_btnEditar_clicked, seleccion)
-        self.btnAceptar = Gtk.Button(label="Aceptar")
+        self.btnAceptar = Gtk.Button.new_with_mnemonic(label="_Aceptar") # Con new_with_mnemonic le digo que quiero que se pueda pulsar con Alt+A
         self.btnAceptar.connect("clicked", self.on_btnAceptar_clicked, modelo, seleccion)
-        self.btnCancelar = Gtk.Button(label="Cancelar")
+        self.btnCancelar = Gtk.Button.new_with_mnemonic(label="_Cancelar") # Con new_with_mnemonic le digo que quiero que se pueda pulsar con Alt+C
         self.btnCancelar.connect("clicked", self.on_btnCancelar_clicked)
         self.deshabilitarControles()
 
@@ -129,8 +130,18 @@ class ventanaPrincipal(Gtk.Window):
         cajaH2.pack_start(self.btnAceptar, True, True, 1)
         cajaH2.pack_start(self.btnCancelar, True, True, 1)
         grid.attach_next_to(cajaH2, self.lblXenero, Gtk.PositionType.BOTTOM, 4, 1)# Pongo la caja horizontal 2, que tiene los botones, debajo de la etiqueta de xenero
-
-
+        self.barraProgreso = Gtk.ProgressBar()
+        self.barraProgreso.hide()
+        grid.attach_next_to(self.barraProgreso, cajaH2, Gtk.PositionType.BOTTOM, 4, 1)
+        self.spinner = Gtk.Spinner()
+        self.spinner.hide()
+        grid.attach_next_to(self.spinner, self.barraProgreso, Gtk.PositionType.BOTTOM, 1, 1)
+        self.contadorActividade = 0
+        self.temporizador = GLib.timeout_add(100, self.on_contador, None)
+        txvConsola= Gtk.TextView()
+        self.bufferTexto = Gtk.TextBuffer()
+        txvConsola.set_buffer(self.bufferTexto)
+        grid.attach_next_to(txvConsola, self.spinner, Gtk.PositionType.RIGHT, 3, 3)
 
         self.add(cajaPrincipal)
         self.connect("delete-event", Gtk.main_quit)
@@ -185,8 +196,12 @@ class ventanaPrincipal(Gtk.Window):
         modeloXenero=self.cmbXenero.get_model()
         xenero = modeloXenero[idXenero][0]
         falecido = self.chkFalecido.get_active()
-        if self.datosCorrectos(dni,edade):
+        self.contadorActividade = 15
+        self.barraProgreso.show()
+        self.spinner.show()
+        self.spinner.start()
 
+        if self.datosCorrectos(dni,edade):
             datos = (dni, nome, int(edade), xenero, falecido)
             try:
                 bbdd = dbapi.connect("baseDatos2.dat")
@@ -194,6 +209,7 @@ class ventanaPrincipal(Gtk.Window):
                 if self.operacion == "Novo":
                     modelo.append(datos)
                     cursor.execute("insert into usuarios values(?,?,?,?,?)",datos)
+                    self.bufferTexto.insert_at_cursor("Novo usuario gardado\n",len("Novo usuario gardado\n"))
                 if self.operacion == "Editar":
                     modelo, fila= seleccion.get_selected()
                     dniAnt= modelo[fila][0]
@@ -204,6 +220,7 @@ class ventanaPrincipal(Gtk.Window):
                     modelo[fila][4] = falecido
                     datosUp=(dni, nome, int(edade), xenero, falecido, dniAnt)
                     cursor.execute("UPDATE usuarios set dni=?, nome = ?, edade = ?, xenero = ?, falecido = ? where dni = ?",datosUp)
+                    self.bufferTexto.insert_at_cursor("Usuario editado\n",len("Usuario editado\n"))
                 bbdd.commit()
             except dbapi.DatabaseError as e:
                 print("Erro insertando usuarios: " + e)
@@ -281,10 +298,22 @@ class ventanaPrincipal(Gtk.Window):
             else:
                 correctos=False
                 self.txtEdade.set_name("edadeErro")
+                self.bufferTexto.insert_at_cursor("\nRango de edade incorrecta\n", len("\nRango de edade incorrecta\n"))
         else:
             correctos=False
             self.txtEdade.set_name("edadeErro")
+            self.bufferTexto.insert_at_cursor("A edade ten que ser un número\n", len("A edade ten que ser un número\n"))
         return correctos
+
+    def on_contador(self, datosExtendidosUsuario):
+        if self.contadorActividade > 0:
+            self.barraProgreso.pulse()
+            self.contadorActividade -= 1
+        else:
+            self.barraProgreso.hide()
+            self.spinner.stop()
+            self.spinner.hide()
+        return True
 
 if __name__ =="__main__":
     ventanaPrincipal()
